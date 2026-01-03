@@ -31,25 +31,30 @@ with tab1:
     ancho_tela = st.select_slider("Ancho de la Tela (cm)", options=[90, 110, 140, 150, 160], value=150)
 
     if st.button("CALCULAR METRAJE ✂️"):
-        # --- LÓGICA CORREGIDA ---
+        # --- LÓGICA DE CÁLCULO ---
         
-        # 1. CÁLCULO DEL LARGO (Tu fórmula)
-        # Largo Camisa + Largo Manga + 5 (costura) + 10 (desperdicio) + 10 (piezas extra)
+        # 1. CÁLCULO DEL LARGO
+        # Sumamos: Camisa + Manga + 5(costura) + 10(desperdicio) + 10(extra)
         total_cm = largo_c + largo_m + 5 + 10 + 10
         total_metros = total_cm / 100
         
-        # 2. CÁLCULO DEL ANCHO (Lógica mejorada)
-        # Asumimos que si el pecho + 30cm de holgura es menor al ancho de la tela, CABE.
-        # Solo si es muy grande, pedimos doble.
-        ancho_necesario_real = pecho + 30 
+        # 2. CÁLCULO DEL ANCHO (Fórmula Detallada)
+        # (Pecho/4) + 6cm holgura + 5cm costura
+        ancho_pieza = (pecho / 4) + 6 + 5
         
-        if ancho_necesario_real > ancho_tela:
+        # Multiplicamos por 4 partes y sumamos 4 CM DE SEPARACIÓN (Ajuste Usuario)
+        ancho_total_cuerpo = (ancho_pieza * 4) + 4 
+        
+        # Verificamos si cabe
+        if ancho_total_cuerpo > ancho_tela:
             cabe_en_tela = False
-            mensaje_ancho = f"⚠️ El contorno es muy ancho ({pecho}cm). Mejor comprar DOBLE largo."
-            total_metros = total_metros * 2 # Sugerimos comprar doble
+            mensaje_ancho = f"⚠️ El patrón requiere {ancho_total_cuerpo}cm de ancho. No cabe en la tela."
+            total_metros = total_metros * 2 # Sugerimos doble
+            nota_final = "⚠️ Doble Tela"
         else:
             cabe_en_tela = True
-            mensaje_ancho = "✅ El patrón cabe bien a lo ancho."
+            mensaje_ancho = f"✅ El patrón ocupa {ancho_total_cuerpo}cm. Cabe bien."
+            nota_final = "✅ Estándar"
 
         # MOSTRAR RESULTADOS
         st.divider()
@@ -57,17 +62,21 @@ with tab1:
         
         col_res1, col_res2 = st.columns(2)
         with col_res1:
-            st.metric(label="Metraje Sugerido", value=f"{total_metros:.2f} m")
+            st.metric(label="Metraje a Comprar", value=f"{total_metros:.2f} m")
         with col_res2:
-            st.info(mensaje_ancho)
+            if cabe_en_tela:
+                st.success(mensaje_ancho)
+            else:
+                st.error(mensaje_ancho)
+                st.info("💡 Sugerencia: Compra el DOBLE de largo.")
 
-        # GUARDAR
+        # GUARDAR EN GALERÍA
         nuevo = {
             "Fecha": datetime.now().strftime("%d/%m/%Y"),
             "Cliente": nombre if nombre else "Anónimo",
             "Medidas": f"{pecho}/{largo_c}/{largo_m}",
             "Metraje": f"{total_metros:.2f} m",
-            "Estado": "Doble" if not cabe_en_tela else "Estándar"
+            "Nota": nota_final
         }
         st.session_state.galeria.append(nuevo)
         st.toast("Guardado en Galería", icon="💾")
