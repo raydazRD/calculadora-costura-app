@@ -2,104 +2,138 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-# --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Calculadora Costura Pro", page_icon="🧵")
+# --- CONFIGURACIÓN DE LA PÁGINA ---
+st.set_page_config(page_title="Calculadora Costura Pro", page_icon="🧵", layout="wide")
 
-# --- MEMORIA ---
+# --- MEMORIA (Base de datos temporal) ---
 if 'galeria' not in st.session_state:
     st.session_state.galeria = []
 
-# --- TÍTULO ---
-st.title("🧵 Calculadora de Metraje")
-st.markdown("Herramienta profesional para camisas de caballero.")
+# --- BARRA LATERAL (EL MENÚ) ---
+st.sidebar.image("https://cdn-icons-png.flaticon.com/512/4327/4327365.png", width=100)
+st.sidebar.title("Menú Principal")
+modo = st.sidebar.radio("Selecciona una opción:", ["👔 Camisa Caballero", "👗 Falda Básica", "📂 Galería/Historial"])
 
-# --- PESTAÑAS ---
-tab1, tab2 = st.tabs(["🧮 CALCULADORA", "📂 GALERÍA"])
+st.sidebar.divider()
+st.sidebar.info("Versión Beta 1.3")
 
-# === PESTAÑA 1: CALCULADORA ===
-with tab1:
-    col_izq, col_der = st.columns(2)
+# ==========================================
+# 👔 MÓDULO 1: CAMISA DE CABALLERO
+# ==========================================
+if modo == "👔 Camisa Caballero":
+    st.title("👔 Calculadora: Camisa Caballero")
     
-    with col_izq:
-        st.subheader("1. Medidas del Cliente")
-        nombre = st.text_input("Nombre del Cliente", placeholder="Ej. Juan Pérez")
-        pecho = st.number_input("Pecho (cm)", min_value=50, max_value=200, value=99)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Medidas")
+        nombre = st.text_input("Nombre Cliente", key="nom_camisa")
+        pecho = st.number_input("Pecho (cm)", 50, 200, 100)
         largo_c = st.number_input("Largo Camisa (cm)", value=75)
         largo_m = st.number_input("Largo Manga (cm)", value=65)
-        
-    with col_der:
-        st.subheader("2. Detalles de la Tela")
-        ancho_tela = st.select_slider("Ancho de la Tela (cm)", options=[90, 110, 140, 150, 160], value=150)
-        
-        # --- NUEVO: CARGAR IMAGEN ---
-        st.markdown("---")
-        st.markdown("📸 **Referencia Visual**")
-        imagen = st.file_uploader("Sube foto de la tela o modelo", type=['png', 'jpg', 'jpeg'])
-        if imagen is not None:
-            st.image(imagen, caption="Modelo de referencia", use_column_width=True)
+    
+    with col2:
+        st.subheader("Tela")
+        ancho_tela = st.select_slider("Ancho Tela (cm)", [90, 110, 140, 150, 160], value=150, key="ancho_camisa")
+        imagen = st.file_uploader("Foto Referencia", type=['jpg','png'], key="img_camisa")
+        if imagen: st.image(imagen, width=200)
 
-    # --- BOTÓN DE CÁLCULO ---
-    st.markdown("---")
-    if st.button("CALCULAR METRAJE ✂️", type="primary"):
-        # 1. CÁLCULO LARGO
-        total_cm = largo_c + largo_m + 5 + 10 + 10
+    if st.button("CALCULAR CAMISA ✂️"):
+        # Fórmulas Camisa
+        total_cm = largo_c + largo_m + 25
         total_metros = total_cm / 100
         
-        # 2. CÁLCULO ANCHO (Tu fórmula ajustada)
-        ancho_pieza = (pecho / 4) + 6 + 5
-        ancho_total_cuerpo = (ancho_pieza * 4) + 4  # 4cm de separación
+        # Fórmula Ancho (Tu ajuste de 4cm)
+        ancho_necesario = ((pecho / 4) + 11) * 4 + 4 
         
-        if ancho_total_cuerpo > ancho_tela:
-            cabe_en_tela = False
-            mensaje_ancho = f"⚠️ El patrón ocupa {ancho_total_cuerpo}cm. ¡Es muy ancho!"
+        if ancho_necesario > ancho_tela:
+            msg = f"⚠️ Ancho insuficiente ({ancho_necesario}cm). Se calculó DOBLE tela."
             total_metros = total_metros * 2
-            nota_final = "⚠️ Doble Tela"
+            estado = "Doble"
+            st.error(msg)
         else:
-            cabe_en_tela = True
-            mensaje_ancho = f"✅ El patrón ocupa {ancho_total_cuerpo}cm. Cabe bien."
-            nota_final = "✅ Estándar"
-
-        # RESULTADOS
-        st.success(f"### 🛍️ Comprar: {total_metros:.2f} metros")
-        if not cabe_en_tela:
-            st.warning(f"{mensaje_ancho} (Se calculó doble largo).")
-        else:
-            st.info(mensaje_ancho)
-
-        # GUARDAR EN HISTORIAL
-        nuevo_id = len(st.session_state.galeria) + 1
+            msg = "✅ El patrón cabe bien."
+            estado = "Estándar"
+            st.success(msg)
+            
+        st.metric("Metraje a Comprar", f"{total_metros:.2f} m")
+        
+        # Guardar
         nuevo = {
-            "ID": nuevo_id,
-            "Fecha": datetime.now().strftime("%d/%m/%Y"),
-            "Cliente": nombre if nombre else "Anónimo",
-            "Medidas": f"P:{pecho} / LC:{largo_c} / LM:{largo_m}",
-            "Metraje": f"{total_metros:.2f} m",
-            "Nota": nota_final
+            "Fecha": datetime.now().strftime("%d/%m"),
+            "Prenda": "Camisa",
+            "Cliente": nombre,
+            "Detalles": f"Pecho: {pecho}",
+            "Metraje": f"{total_metros:.2f} m"
         }
         st.session_state.galeria.append(nuevo)
-        st.toast("Guardado en Galería", icon="💾")
+        st.toast("Guardado", icon="💾")
 
-# === PESTAÑA 2: GALERÍA (Edición) ===
-with tab2:
+# ==========================================
+# 👗 MÓDULO 2: FALDA BÁSICA (CORREGIDO)
+# ==========================================
+elif modo == "👗 Falda Básica":
+    st.title("👗 Calculadora: Falda Básica")
+    st.info("Cálculo para falda recta clásica.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Medidas")
+        nombre = st.text_input("Nombre Cliente", key="nom_falda")
+        cintura = st.number_input("Cintura (cm)", 40, 150, 70)
+        cadera = st.number_input("Cadera (cm)", 50, 200, 95)
+        largo_f = st.number_input("Largo Falda (cm)", value=60)
+    
+    with col2:
+        st.subheader("Tela")
+        ancho_tela = st.select_slider("Ancho Tela (cm)", [90, 110, 140, 150, 160], value=150, key="ancho_falda")
+        imagen_f = st.file_uploader("Foto Referencia", type=['jpg','png'], key="img_falda")
+        if imagen_f: st.image(imagen_f, width=200)
+
+    if st.button("CALCULAR FALDA ✂️"):
+        # --- FÓRMULA FALDA ACTUALIZADA ---
+        # 1. Largo: Largo + 10 (pretina) + 5 (ruedo) + 10 (desperdicio)
+        largo_total_cm = largo_f + 10 + 5 + 10
+        metros = largo_total_cm / 100
+        
+        # 2. Ancho: Cadera + 5 (holgura) + 5 (costura)
+        ancho_total_patron = cadera + 5 + 5
+        
+        st.divider()
+        st.markdown(f"### Resultado para {nombre if nombre else 'Cliente'}")
+
+        # Lógica de decisión
+        if ancho_total_patron > ancho_tela:
+            st.warning(f"⚠️ El ancho requerido ({ancho_total_patron} cm) es mayor que la tela ({ancho_tela} cm).")
+            st.info("💡 Solución: Se requiere DOBLE largo de tela.")
+            metros = metros * 2
+        else:
+            st.success(f"✅ El ancho ({ancho_total_patron} cm) cabe perfectamente en la tela.")
+            
+        st.metric("Metraje a Comprar", f"{metros:.2f} m")
+        
+        # Guardar
+        nuevo = {
+            "Fecha": datetime.now().strftime("%d/%m"),
+            "Prenda": "Falda",
+            "Cliente": nombre,
+            "Detalles": f"Cadera: {cadera} / Largo: {largo_f}",
+            "Metraje": f"{metros:.2f} m"
+        }
+        st.session_state.galeria.append(nuevo)
+        st.toast("Guardado", icon="💾")
+
+# ==========================================
+# 📂 MÓDULO 3: GALERÍA
+# ==========================================
+elif modo == "📂 Galería/Historial":
     st.header("📂 Historial de Proyectos")
     
     if len(st.session_state.galeria) > 0:
-        # Convertimos a tabla
         df = pd.DataFrame(st.session_state.galeria)
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, use_container_width=True)
         
-        st.divider()
-        st.subheader("🗑️ Gestión de registros")
-        
-        # Selector para borrar
-        lista_clientes = [f"{item['ID']} - {item['Cliente']}" for item in st.session_state.galeria]
-        seleccion = st.selectbox("Seleccionar registro a eliminar:", options=lista_clientes)
-        
-        if st.button("Eliminar Registro Seleccionado"):
-            # Lógica para borrar
-            id_a_borrar = int(seleccion.split(" - ")[0])
-            st.session_state.galeria = [d for d in st.session_state.galeria if d['ID'] != id_a_borrar]
-            st.rerun() # Recarga la página para ver cambios
-            
+        if st.button("Borrar todo el historial"):
+            st.session_state.galeria = []
+            st.rerun()
     else:
-        st.info("Aún no hay proyectos guardados en esta sesión.")
+        st.info("No hay mediciones guardadas en esta sesión.")
